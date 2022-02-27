@@ -3,6 +3,8 @@
 # Author: Lewis Watson, Using "Natural Language Processing with Transformers" by Hugging Face
 # Date: 27/02/2022
 
+# Update: I should have used a notebook for this, but I have committed to this for this tutorial.
+
 from datasets import load_dataset
 from transformers import AutoTokenizer
 import pandas as pd
@@ -133,6 +135,56 @@ def tokenize(batch):
 # Tokenize the dataset.
 emotions_encoded = emotions.map(tokenize, batched=True, batch_size=None)
 
-
 # Training a text classification model
+
+from transformers import AutoModel
+
+model_ckpt = "distilbert-base-uncased"
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+model = AutoModel.from_pretrained(model_ckpt).to(device)
+
+# Extracting the last hidden states
+text = "this is a test"
+inputs = tokenizer(text, return_tensors="pt")
+print(f"Input tensor shape: {inputs['input_ids'].size()}")
+
+inputs = {k: v.to(device) for k, v in inputs.items()}
+with torch.no_grad():
+    outputs = model(**inputs)
+print(outputs)
+
+outputs.last_hidden_state.size()
+
+
+# Adding extracted hidden states to the dataset
+def extract_hidden_states(batch):
+    # Place model inputs on the GPU
+    inputs = {k: v.to(device) for k, v in batch.items()
+              if k in tokenizer.model_input_names}
+    # Extract last hidden states
+    with torch.no_grad():
+        last_hidden_state = model(**inputs).last_hidden_state
+    # Return vector for [CLS] token
+    return {"hidden_state": last_hidden_state[:, 0].cpu().numpy()}
+
+
+# Convert to the torch format
+emotions_encoded.set_format("torch", columns=["input_ids", "attention_mask", "label"])
+
+# Extract hidden states of the dataset
+emotions_hidden = emotions_encoded.map(extract_hidden_states, batched=True)
+
+# Show column names
+emotions_hidden["train"].column_names
+
+
+# Creating a feature matrix
+import numpy as np
+
+X_train = np.array(emotions_hidden["train"]["hidden_state"])
+X_valid = np.array(emotions_hidden["validation"]["hidden_state"])
+y_train = np.array(emotions_hidden["train"]["label"])
+y_valid = np.array(emotions_hidden["validation"]["label"])
+print(X_train.shape, X_valid.shape)
+
 
