@@ -31,14 +31,14 @@ print(df.head())
 def label_int2str(row):
     return emotions["train"].features["label"].int2str(row)
 
+
 df["label_name"] = df["label"].apply(label_int2str)
 print(df.head())
-
 
 # It is worth analysing the distribution of labels in the dataset
 df["label_name"].value_counts(ascending=True).plot.barh()
 plt.title("Frequency of Classes")
-#plt.show()
+# plt.show()
 
 # We can see the dataset is unbalanced, to solve this we can
 # a) Randomly oversample the minority class
@@ -55,16 +55,15 @@ plt.title("Frequency of Classes")
 
 df["Words Per Tweet"] = df["text"].str.split().apply(len)
 df.boxplot("Words Per Tweet", by="label_name", grid=False,
-          showfliers=False, color="black")
+           showfliers=False, color="black")
 plt.suptitle("")
 plt.xlabel("")
-#plt.show()
+# plt.show()
 
 # We can see that the majority of tweets are less than 20 words, and the longest are still under DistilBERTs maximum context size of 512.
 
 # Reset formatting of the dataset as we dont need to visualise any more.
 emotions.reset_format()
-
 
 # Character Tokenization
 text = "Tokenizing text is a core task of NLP."
@@ -112,12 +111,12 @@ print(tokenized_text)
 model_ckpt = "distilbert-base-uncased"
 tokenizer = AutoTokenizer.from_pretrained(model_ckpt)
 
-encoded_text = tokenizer(text) # Lets feed it our "Tokenizing text is a core task of NLP." example text.
-print(encoded_text) # We get unique ids!
+encoded_text = tokenizer(text)  # Lets feed it our "Tokenizing text is a core task of NLP." example text.
+print(encoded_text)  # We get unique ids!
 
 # Lets now decode the ids back to words.
 tokens = tokenizer.convert_ids_to_tokens(encoded_text.input_ids)
-print(tokens) # Tokenizing and NLP have been split, this is expected as they are not common words.
+print(tokens)  # Tokenizing and NLP have been split, this is expected as they are not common words.
 # the '##' prefix is used to indicate that the token is a subword.
 
 # Lets see it as a string
@@ -125,4 +124,15 @@ print(tokenizer.convert_tokens_to_string(tokens))
 
 
 # Tokenizing the whole dataset
+
+# Create a tokenizer function, with padding, and truncation to the max length.
+def tokenize(batch):
+    return tokenizer(batch["text"], padding=True, truncation=True)
+
+
+# Tokenize the dataset.
+emotions_encoded = emotions.map(tokenize, batched=True, batch_size=None)
+
+
+# Training a text classification model
 
